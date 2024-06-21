@@ -147,7 +147,7 @@ void HardwareSerial::end()
 
 int HardwareSerial::available(void)
 {
-  return -1;
+  return !serial_rx_active(&_serial); // "active" means "ready to receive" (emtpy)
 }
 
 int HardwareSerial::peek(void)
