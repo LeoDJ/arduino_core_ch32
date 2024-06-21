@@ -499,6 +499,7 @@ size_t uart_write(serial_t *obj, uint8_t *data, uint32_t size)
     while (serial_tx_active(obj)) ;
     USART_SendData(obj->uart,*data++);
   }
+  while (serial_tx_active(obj)) ;
   return size;
 }
 
