@@ -34,9 +34,9 @@ HardwareSerial::HardwareSerial(void *peripheral)
 {
   setHandler(peripheral);
 
-  setRx(PIN_SERIAL_RX);
+  setRx(pinmap_find_pin(peripheral, PinMap_UART_RX));
   
-  setTx(PIN_SERIAL_TX);
+  setTx(pinmap_find_pin(peripheral, PinMap_UART_TX));
   
   init(_serial.pin_rx, _serial.pin_tx);
 }
@@ -169,8 +169,7 @@ int HardwareSerial::read(void)
 
 size_t HardwareSerial::write(const uint8_t *buffer, size_t size)
 {
-
-    return  uart_debug_write((uint8_t *)buffer, size);
+  return uart_write(&_serial, (uint8_t *)buffer, size);
 }
 
 

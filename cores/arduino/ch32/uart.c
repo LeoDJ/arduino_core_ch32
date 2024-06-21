@@ -472,8 +472,35 @@ int uart_getc(serial_t *obj, unsigned char *c)
 }
 
 
+/**
+  * @brief  write the data on the uart
+  * @param  obj : pointer to serial_t structure
+  * @param  data : bytes to write
+  * @param  size : number of data to write
+  * @retval The number of bytes written
+  */
+size_t uart_write(serial_t *obj, uint8_t *data, uint32_t size)
+{
+  if (obj == NULL) {
+    return -1;
+  }
 
+  uint32_t tickstart = GetTick();
+  while (serial_tx_active(obj)) 
+  {
+    if ((GetTick() - tickstart) >= TX_TIMEOUT) 
+    {
+      return 0;
+    }
+  }
 
+  for (int i = 0; i < size; i++)
+  {
+    while (serial_tx_active(obj)) ;
+    USART_SendData(obj->uart,*data++);
+  }
+  return size;
+}
 
 
 
