@@ -102,6 +102,8 @@ typedef enum {
 class HardwareSerial : public Stream {
 
   serial_t _serial;  
+  unsigned char _rx_buffer[SERIAL_RX_BUFFER_SIZE];
+  
 public:
     HardwareSerial(void *peripheral); 
     

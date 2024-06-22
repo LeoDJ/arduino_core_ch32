@@ -54,6 +54,9 @@ void HardwareSerial::init(PinName _rx, PinName _tx, PinName _rts, PinName _cts)
   _serial.pin_tx = _tx;
   _serial.pin_rts = _rts;
   _serial.pin_cts = _cts;
+  _serial.rx_buff = _rx_buffer;
+  _serial.rx_buff_len = SERIAL_RX_BUFFER_SIZE;
+  _serial.rx_tail = 0;
 }
 
 
@@ -147,22 +150,26 @@ void HardwareSerial::end()
 
 int HardwareSerial::available(void)
 {
-  return !serial_rx_active(&_serial); // "active" means "ready to receive" (emtpy)
+  return uart_read_available(&_serial);
 }
 
 int HardwareSerial::peek(void)
 {
-   return -1;
+  if (uart_read_available(&_serial) == 0) {
+    return -1;
+  } else {
+    return _serial.rx_buff[_serial.rx_tail];
+  }
 }
 
 int HardwareSerial::read(void)
 {
-
-  unsigned char c;
-  if(uart_getc(&_serial, &c) == 0){
-    return c;
-  }else{
+  if (uart_read_available(&_serial) == 0) {
     return -1;
+  } else {
+    unsigned char c = _serial.rx_buff[_serial.rx_tail];
+    _serial.rx_tail = (rx_buffer_index_t)(_serial.rx_tail + 1) % SERIAL_RX_BUFFER_SIZE;
+    return c;
   }
 }
 

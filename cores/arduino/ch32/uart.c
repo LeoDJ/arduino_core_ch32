@@ -78,6 +78,14 @@ typedef enum {
 
 static UART_HandleTypeDef *uart_handlers[UART_NUM] = {NULL};
 
+// holds the DMA channels per UART index, probably different for non V20x variants. TODO, I guess
+static const uart_dma_chan_t uart_dma_chan[] = {
+  {.rx = DMA1_Channel5, .tx = DMA1_Channel4}, // USART1
+  {.rx = DMA1_Channel6, .tx = DMA1_Channel7}, // USART2
+  {.rx = DMA1_Channel3, .tx = DMA1_Channel2}, // USART3
+  {.rx = DMA1_Channel8, .tx = DMA1_Channel1}, // USART4
+};
+
 
 static serial_t serial_debug =
 {
@@ -102,6 +110,38 @@ serial_t *get_serial_obj(UART_HandleTypeDef *huart)
   obj = (serial_t *)((char *)obj_s - offsetof(serial_t, uart));
 
   return (obj);
+}
+
+/**
+  * @brief  Function called to initialize the RX DMA for the uart interface
+  * @param  obj : pointer to serial_t structure
+  * @retval None
+  */
+void uart_init_dma_rx(serial_t *obj) {
+  DMA_InitTypeDef DMA_InitStructure = {0};
+  RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
+
+  DMA_Channel_TypeDef *dmaChan = uart_dma_chan[obj->index].rx;
+
+  DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+  DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+  DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+  DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+  DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;
+  DMA_InitStructure.DMA_Priority = DMA_Priority_VeryHigh;
+  DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;
+
+  DMA_DeInit(dmaChan);
+  DMA_InitStructure.DMA_PeripheralBaseAddr = &obj->uart->DATAR;
+  DMA_InitStructure.DMA_MemoryBaseAddr = obj->rx_buff;
+  DMA_InitStructure.DMA_BufferSize = obj->rx_buff_len;
+  DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC;
+  DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
+  DMA_Init(dmaChan, &DMA_InitStructure);
+
+  DMA_Cmd(dmaChan, ENABLE);
+
+  USART_DMACmd(obj->uart, USART_DMAReq_Rx, ENABLE);
 }
 
 
@@ -270,6 +310,7 @@ void uart_init(serial_t *obj, uint32_t baudrate, uint32_t databits, uint32_t par
 
   USART_Init(huart->Instance, &(huart->init));
   USART_Cmd(huart->Instance, ENABLE);
+  uart_init_dma_rx(obj);
 }
 
 /**
@@ -503,7 +544,24 @@ size_t uart_write(serial_t *obj, uint8_t *data, uint32_t size)
   return size;
 }
 
+/**
+  * @brief  Get number of available bytes in RX buffer
+  * @param  obj : pointer to serial_t structure
+  * @retval number of bytes in RX buffer
+  */
+size_t uart_read_available(serial_t *obj) 
+{
+  if (obj == NULL) {
+    return -1;
+  }
 
+  uint16_t dmaPos = obj->rx_buff_len - DMA_GetCurrDataCounter(uart_dma_chan[obj->index].rx); // DMA DataCounter counts backwards
+  int bytesToRead = dmaPos - obj->rx_tail;
+  if (bytesToRead < 0) {
+    bytesToRead += obj->rx_buff_len;
+  }
+  return bytesToRead;
+}
 
 
 #endif /* UART_MODULE_ENABLED  && !UART_MODULE_ONLY */

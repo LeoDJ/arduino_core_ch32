@@ -76,9 +76,15 @@ typedef struct __UART_HandleTypeDef
     PinName pin_cts;
     IRQn_Type irq;
     uint8_t index;
+    uint8_t *rx_buff;
+    uint16_t rx_buff_len;
+    uint16_t rx_tail; // rx_head is automatically provided by the DMA position
   };
 
-
+  typedef struct {
+    DMA_Channel_TypeDef *rx;
+    DMA_Channel_TypeDef *tx;
+  } uart_dma_chan_t;
 
 
   #define TX_TIMEOUT  1000
@@ -90,12 +96,13 @@ typedef struct __UART_HandleTypeDef
   void uart_deinit(serial_t *obj);
 
   int uart_getc(serial_t *obj, unsigned char *c);
+  size_t uart_write(serial_t *obj, uint8_t *data, uint32_t size);
+  size_t uart_read_available(serial_t *obj);
 
   uint8_t serial_tx_active(serial_t *obj);
   uint8_t serial_rx_active(serial_t *obj);
 
   size_t uart_debug_write(uint8_t *data, uint32_t size);
-  size_t uart_write(serial_t *obj, uint8_t *data, uint32_t size);
 
 #else
 
